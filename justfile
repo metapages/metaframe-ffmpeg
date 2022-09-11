@@ -67,7 +67,7 @@ dev: _mkcert _ensure_npm_modules (_tsc "--build")
 
 # Add "_npm_publish" to the end of this command to publish to npm
 # [Default] Add "_githubpages_publish" to the end of this command to publish to github pages
-# Rßeaction to "publish". On new git version tag: publish code to github pages
+# Reaction to "publish". On new git version tag: publish code to github pages
 on-tag: _fix_git_actions_permission _ensure_npm_modules _ensureGitPorcelain _githubpages_publish
 
 # build the browser app in ./docs (default for github pages)
@@ -162,6 +162,10 @@ _tsc +args="": _ensure_npm_modules
 
 # update "gh-pages" branch with the (versioned and default) current build (./docs) (and keeping all previous versions)
 _githubpages_publish: _ensure_npm_modules
+    BASE={{ if path_exists("public/CNAME") { "" } else { PACKAGE_NAME_SHORT } }} \
+    deno run --unstable --allow-all {{DENO_SOURCE}}/browser/gh-pages-publish-to-docs.ts --versioning=true
+
+_cloudflare-pages-publish: _ensure_npm_modules
     deno run --unstable --allow-all {{DENO_SOURCE}}/browser/gh-pages-publish-to-docs.ts --versioning=true
 
 ####################################################################################
