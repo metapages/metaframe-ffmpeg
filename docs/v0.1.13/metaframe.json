@@ -1,0 +1,28 @@
+{
+  "version": "0.6",
+  "metadata": {
+    "name": "FFMPEG/video recording and transcoding",
+    "tags": [
+      "ffmpeg",
+      "video",
+      "recording",
+      "transcoding",
+      "avi",
+      "mp4",
+      "h264",
+      "mpeg",
+      "mkv",
+      "webm"
+    ]
+  },
+  "inputs": {
+    "*": {
+      "type": "application/octet-stream:base64"
+    }
+  },
+  "outputs": {
+    "*": {
+      "type": "application/octet-stream:base64"
+    }
+  }
+}
