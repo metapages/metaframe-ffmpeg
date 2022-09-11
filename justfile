@@ -161,9 +161,9 @@ _tsc +args="": _ensure_npm_modules
     {{vite}} {{args}}
 
 # update "gh-pages" branch with the (versioned and default) current build (./docs) (and keeping all previous versions)
-_githubpages_publish: _ensure_npm_modules
+@_githubpages_publish: _ensure_npm_modules
     BASE=$(if [ -f "public/CNAME" ]; then echo ""; else echo "{{PACKAGE_NAME_SHORT}}"; fi) \
-    deno run --unstable --allow-all {{DENO_SOURCE}}/browser/gh-pages-publish-to-docs.ts --versioning=true
+        deno run --unstable --allow-all {{DENO_SOURCE}}/browser/gh-pages-publish-to-docs.ts --versioning=true
 
 _cloudflare-pages-publish: _ensure_npm_modules
     deno run --unstable --allow-all {{DENO_SOURCE}}/browser/gh-pages-publish-to-docs.ts --versioning=true
