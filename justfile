@@ -65,12 +65,10 @@ dev: _mkcert _ensure_npm_modules (_tsc "--build")
     # Push the tags up
     git push origin v$(cat package.json | jq -r '.version')
 
-# Publish targets (add to the end of the on-tag-version command to execute):
-#   - `_npm_publish`: publish to npm
-#   - `_githubpages_publish`: publish to github pages
-#   - `_cloudflare_pages_publish`: publish to cloudflare pages
-# Reaction to "publish". On new git version tag: publish code [github pages, cloudflare pages, npm]
-on-tag-version: _fix_git_actions_permission _ensure_npm_modules _ensureGitPorcelain _cloudflare_pages_publish
+# Add "_npm_publish" to the end of this command to publish to npm
+# [Default] Add "_githubpages_publish" to the end of this command to publish to github pages
+# Reaction to "publish". On new git version tag: publish code to github pages
+on-tag: _fix_git_actions_permission _ensure_npm_modules _ensureGitPorcelain _githubpages_publish
 
 # build the browser app in ./docs (default for github pages)
 _browser_client_build BASE="":
@@ -163,11 +161,11 @@ _tsc +args="": _ensure_npm_modules
     {{vite}} {{args}}
 
 # update "gh-pages" branch with the (versioned and default) current build (./docs) (and keeping all previous versions)
-@_githubpages_publish: _ensure_npm_modules
-    BASE=$(if [ -f "public/CNAME" ]; then echo ""; else echo "{{PACKAGE_NAME_SHORT}}"; fi) \
-        deno run --unstable --allow-all {{DENO_SOURCE}}/browser/gh-pages-publish-to-docs.ts --versioning=true
+_githubpages_publish: _ensure_npm_modules
+    BASE={{ if path_exists("public/CNAME") { "" } else { PACKAGE_NAME_SHORT } }} \
+    deno run --unstable --allow-all {{DENO_SOURCE}}/browser/gh-pages-publish-to-docs.ts --versioning=true
 
-@_cloudflare_pages_publish: _ensure_npm_modules
+_cloudflare-pages-publish: _ensure_npm_modules
     deno run --unstable --allow-all {{DENO_SOURCE}}/browser/gh-pages-publish-to-docs.ts --versioning=true
 
 ####################################################################################
