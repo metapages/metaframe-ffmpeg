@@ -2,7 +2,7 @@
 # https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
 # This workflow is triggered on pushes to non-main (or master) branches
 # Builds and tests the app (just test)
-name: on-tag
+name: on-tag-version
 
 # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions
 on:
@@ -16,7 +16,7 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
-  on-tag:
+  on-tag-version:
     name: Publish on new version tag
     runs-on: ubuntu-latest
     steps:
@@ -52,7 +52,7 @@ jobs:
       - name: Prepare cloud/CI image
         uses: ./.github/actions/cloud-image
 
-      - name: on-tag
+      - name: on-tag-version
         uses: ./.github/actions/cloud
         env:
           DOCKER_REGISTRY: ghcr.io
@@ -60,4 +60,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         with:
-          command: "just on-tag"
+          command: "just on-tag-version"
