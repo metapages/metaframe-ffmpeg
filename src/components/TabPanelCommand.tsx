@@ -4,8 +4,10 @@ import {
   Button,
   FormControl,
   FormLabel,
+  HStack,
   Input,
   InputGroup,
+  Link,
   VStack,
 } from "@chakra-ui/react";
 import { createFFmpeg, fetchFile, FFmpeg } from "@ffmpeg/ffmpeg";
@@ -17,6 +19,8 @@ import { FileValidated } from "@dropzone-ui/react";
 import { useHashParamBase64 } from "@metapages/hash-query";
 import { parse } from "shell-quote";
 import { MessageError } from "./Messages";
+import { TabPanelFileList } from "./TabPanelFileList";
+import { ExternalLinkIcon, LinkIcon } from "@chakra-ui/icons";
 
 const validationSchema = yup.object({
   command: yup.string(),
@@ -24,11 +28,21 @@ const validationSchema = yup.object({
 interface FormType extends yup.InferType<typeof validationSchema> {}
 
 export const TabPanelCommand: React.FC = () => {
+  return (
+    <VStack alignItems="stretch">
+      <Command />
+      <TabPanelFileList />
+    </VStack>
+  );
+};
+
+const Command: React.FC = () => {
   const [command, setCommand] = useHashParamBase64("command");
   const syncCachedFiles = useFileStore((state) => state.syncCachedFiles);
   const cachedFiles = useFileStore((state) => state.cachedFiles);
   const uploadedFiles = useFileStore((state) => state.uploadedFiles);
   const addUploadedFile = useFileStore((state) => state.addUploadedFile);
+  const ffmpegInputFiles = useFileStore((state) => state.ffmpegInputFiles);
 
   const setError = useFileStore((state) => state.setError);
   const setMode = useFileStore((state) => state.setMode);
@@ -51,7 +65,7 @@ export const TabPanelCommand: React.FC = () => {
         if (ffmpegRef.current?.isLoaded()) {
           ffmpegRef.current?.exit();
         }
-      } catch(err) {
+      } catch (err) {
         console.log(`💜 ffmpeg.exit() error:`, err);
       }
       ffmpegRef.current = undefined;
@@ -64,7 +78,7 @@ export const TabPanelCommand: React.FC = () => {
 
   const run = useCallback(
     async (command: string) => {
-      console.log('🔴 run command', command);
+      console.log("🔴 run command", command);
       // console.log('🔴 run cachedFiles', cachedFiles);
 
       setError(null);
@@ -75,7 +89,7 @@ export const TabPanelCommand: React.FC = () => {
       // keep a local copy and a ref. if those two values
       // are ever different, bail immediately, another run
       // has started
-      ffmpegRef.current = ffmpeg
+      ffmpegRef.current = ffmpeg;
       // console.log(`💜 await ffmpegRef.load()`)
       await ffmpeg.load();
       if (ffmpegRef.current !== ffmpeg) {
@@ -83,23 +97,34 @@ export const TabPanelCommand: React.FC = () => {
       }
       ffmpeg.FS("mkdir", "/outputs");
 
-
-
       const existingFileNamesSet = new Set<string>();
-      cachedFiles.forEach(item => existingFileNamesSet.add(item));
-      uploadedFiles.forEach(item => existingFileNamesSet.add(item.file.name));
+      cachedFiles.forEach((item) => existingFileNamesSet.add(item));
+      uploadedFiles.forEach((item) => existingFileNamesSet.add(item.file.name));
       const existingFileNames = Array.from(existingFileNamesSet);
-      const filesToWrite = existingFileNames.filter(f => command.includes(f));
-      console.log('🔴 filesToWrite', filesToWrite);
+      let filesToWrite = new Set(existingFileNames.filter(f => command.includes(f)));
+      console.log('filesToWrite', filesToWrite);
+      ffmpegInputFiles.forEach(f => filesToWrite.add(f));
+
+
+
+
+      console.log("🔴 filesToWrite", filesToWrite);
+
+      ffmpegRef.current.FS(
+        "writeFile",
+        "inputs.txt",
+        Array.from(filesToWrite).map((f) => `file '${f.replace(" ", "-")}'`).join("\n")
+      );
 
       for (const fileName of filesToWrite) {
-        let fileBlob :File;
-        let uploadedFile = uploadedFiles.find(f => f.file.name === fileName);
+        let fileBlob: File;
+        let uploadedFile = uploadedFiles.find((f) => f.file.name === fileName);
 
         if (uploadedFile) {
           fileBlob = uploadedFile.file;
         } else {
-          const fileFromCache :File | undefined | null  = await localForage.getItem(fileName);
+          const fileFromCache: File | undefined | null =
+            await localForage.getItem(fileName);
           console.log(`🔴 loaded "${fileName}"`, fileFromCache);
           // bail after every await if another run has started
           if (ffmpegRef.current !== ffmpeg) {
@@ -114,23 +139,19 @@ export const TabPanelCommand: React.FC = () => {
         }
 
         if (fileBlob) {
-
           const buffer = await fileBlob.arrayBuffer();
           // bail after every await if another run has started
           if (ffmpegRef.current !== ffmpeg) {
             return;
           }
           var uint8View = new Uint8Array(buffer);
-          ffmpegRef.current.FS("writeFile", fileName, uint8View);
+          ffmpegRef.current.FS("writeFile", fileName.replace(" ", "-"), uint8View);
           // console.log(`💜 👉 await ffmpeg.writefile(${fileName}) [${ffmpeg.FS("readdir", "/")}]`);
-
         } else {
           console.log(`❗ no blob for "${fileName}")`);
         }
       }
       try {
-
-
         // ffmpeg.setLogger(({ message }) => {
         //   console.log(message);
         //   console.log(`message=${message}`);
@@ -138,21 +159,23 @@ export const TabPanelCommand: React.FC = () => {
         ffmpeg.setProgress((ratio) => {
           console.log(`ratio=${JSON.stringify(ratio)}`);
         });
-        const parsedComment :string[] = parse(command).filter((s) => s.toString()) as string[];
+        const parsedComment: string[] = parse(command).filter((s) =>
+          s.toString()
+        ) as string[];
         // console.log(`💜 await ffmpegRef.run(${parsedComment})`)
         await ffmpeg.run(...parsedComment);
 
         const allFFmpegFiles = ffmpeg.FS("readdir", "/");
-        console.log('allFFmpegFiles', allFFmpegFiles);
+        console.log("allFFmpegFiles", allFFmpegFiles);
 
         // remove the files we wrote
-        filesToWrite.forEach(f => ffmpeg.FS("unlink", f));
+        filesToWrite.forEach((f) => ffmpeg.FS("unlink", f));
 
         // output the new video files
         // allFFmpegFiles
-        console.log('allFFmpegFiles', allFFmpegFiles);
+        console.log("allFFmpegFiles", allFFmpegFiles);
         const outputFiles = ffmpeg.FS("readdir", "/outputs");
-        outputFiles.forEach(filename => {
+        outputFiles.forEach((filename) => {
           console.log(`🔴 checking "${filename}"`);
           // ignore the input files we already deleted
           // if (filesToWrite.includes(filename)) {
@@ -164,28 +187,27 @@ export const TabPanelCommand: React.FC = () => {
             const data = ffmpeg.FS("readFile", `/outputs/${filename}`);
             const blob = new Blob([data.buffer], { type: "video/mp4" });
             const file = new File([blob], filename, { type: "video/mp4" });
-          //   export interface FileValidated {
-          //     file: File;
-          //     valid: boolean;
-          //     id: number | string | undefined;
-          //     errors?: string[];
-          //     uploadMessage?: string;
-          //     uploadStatus?: undefined | UPLOADSTATUS;
-          // }
+            //   export interface FileValidated {
+            //     file: File;
+            //     valid: boolean;
+            //     id: number | string | undefined;
+            //     errors?: string[];
+            //     uploadMessage?: string;
+            //     uploadStatus?: undefined | UPLOADSTATUS;
+            // }
             console.log(`🔴 adding to cache: "${filename}"`);
-            addUploadedFile({ file, valid:true, id: undefined });
+            addUploadedFile({ file, valid: true, id: undefined });
             // localForage.setItem(filename, file);
 
             ffmpeg.FS("unlink", `/outputs/${filename}`);
           } else {
             console.log(`❗ ignoring "${filename}"`);
           }
-
         });
         // ffmpeg.FS('readFile', 'video.mp4');
 
         // get the output files
-      } catch(err) {
+      } catch (err) {
         console.error(err);
         setError(`${err}`);
         setMode("error");
@@ -200,12 +222,7 @@ export const TabPanelCommand: React.FC = () => {
       // const allFFmpegFiles = ffmpeg.FS("readdir", "/");
       // console.log('allFFmpegFiles', allFFmpegFiles);
 
-
-
-
-
       // ffmpeg.FS("writeFile", name, await fetchFile(files[0]));
-
 
       // readdir
       // const data = ffmpeg.FS("readFile", "output.mp4");
@@ -214,13 +231,13 @@ export const TabPanelCommand: React.FC = () => {
       //   new Blob([data.buffer], { type: "video/mp4" })
       // );
     },
-    [ffmpegRef, uploadedFiles, cachedFiles, setError, setMode]
+    [ffmpegRef, ffmpegInputFiles, uploadedFiles, cachedFiles, setError, setMode]
   );
 
   const onSubmit = useCallback(
     (values: FormType) => {
       if (values.command) {
-        setMode("running")
+        setMode("running");
         setCommand(values.command);
         run(values.command);
       }
@@ -230,7 +247,7 @@ export const TabPanelCommand: React.FC = () => {
 
   const formik = useFormik({
     initialValues: {
-      command:command,
+      command: command,
     },
     onSubmit,
     validationSchema,
@@ -246,21 +263,16 @@ export const TabPanelCommand: React.FC = () => {
 
   useEffect(() => {
     formik.setFieldValue("command", command);
-  }, [command, formik.setFieldValue])
-
-
-  // console.log('🥬 command', command);
-  // console.log('🥬 formik.values.command', formik.values.command);
-
+  }, [command, formik.setFieldValue]);
 
   return (
-    <VStack alignItems="stretch">
+    <>
       <form onSubmit={formik.handleSubmit}>
         <FormControl>
           <FormLabel htmlFor="command">ffmpeg command:</FormLabel>
 
           <InputGroup>
-            <Input
+            <HStack width="100%"><Input flexGrow="3"
               id="command"
               name="command"
               type="text"
@@ -268,22 +280,26 @@ export const TabPanelCommand: React.FC = () => {
               onChange={formik.handleChange}
               value={formik.values.command || ""}
             />
+        <Link href="https://metapages.notion.site/ffmpeg-recipes-4b90c8b313fc4cb2ab8260f42543f214" >Recipes <ExternalLinkIcon/></Link>
+            </HStack>
           </InputGroup>
-        </FormControl>
 
+        </FormControl>
+        {/* <br/> */}
+      </form>
       <Button
         alignSelf="flex-start"
         colorScheme={mode === "running" ? "red" : "green"}
         mr={3}
+        p={4}
         disabled={!formik.values.command}
         // disabled={mode !== "running"}
         onClick={onClick}
-        >
+      >
         {mode === "running" ? "Cancel" : "Run"}
       </Button>
-          </form>
 
       {error ? <MessageError message={error} /> : null}
-    </VStack>
+    </>
   );
 };

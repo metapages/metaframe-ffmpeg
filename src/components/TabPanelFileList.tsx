@@ -1,7 +1,26 @@
 import { useEffect, useState } from "react";
-import { Box, HStack, IconButton, VStack } from "@chakra-ui/react";
+import {
+  Box,
+  Code,
+  IconButton,
+  Switch,
+  Table,
+  TableCaption,
+  TableContainer,
+  Tbody,
+  Td,
+  Tfoot,
+  Th,
+  Thead,
+  Tr,
+} from "@chakra-ui/react";
 import { useFileStore } from "../store";
-import { DeleteIcon, DownloadIcon } from "@chakra-ui/icons";
+import {
+  DeleteIcon,
+  DownloadIcon,
+  CheckIcon,
+  ArrowDownIcon,
+} from "@chakra-ui/icons";
 
 export const TabPanelFileList: React.FC = () => {
   const syncCachedFiles = useFileStore((state) => state.syncCachedFiles);
@@ -20,11 +39,29 @@ export const TabPanelFileList: React.FC = () => {
   ];
 
   return (
-    <VStack alignItems="flex-start">
-      {files.map((file, i) => (
-        <FileLineItem key={i} filename={file.name} cached={file.cached} />
-      ))}
-    </VStack>
+    <TableContainer>
+      <Table size="sm" variant="simple">
+        <TableCaption>
+          Files selected for INPUTS are written to "inputs.txt" for{" "}
+          <Code>ffmpeg -i inputs.txt</Code>
+        </TableCaption>
+        <Thead>
+          <Tr>
+            <Th>Inputs </Th>
+            <Th>Name</Th>
+            <Th>Cached</Th>
+            <Th>Download</Th>
+            <Th>Delete</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {files.map((file, i) => (
+            <FileLineItem key={i} filename={file.name} cached={file.cached} />
+          ))}
+        </Tbody>
+        <Tfoot></Tfoot>
+      </Table>
+    </TableContainer>
   );
 };
 
@@ -35,23 +72,26 @@ const FileLineItem: React.FC<{ filename: string; cached: boolean }> = ({
   const deleteFile = useFileStore((state) => state.deleteFile);
   const cacheFile = useFileStore((state) => state.cacheFile);
   const getFile = useFileStore((state) => state.getFile);
-  const [objectUrl, setObjectUrl]  = useState<string|undefined>();
+  const [objectUrl, setObjectUrl] = useState<string | undefined>();
+  const isSelectedForFFMpegInput = useFileStore((state) =>
+    state.ffmpegInputFiles.has(filename)
+  );
+  const toggleIsSelectedForFFMpegInput = useFileStore((state) =>
+    state.toggleFFMpegInputFile(filename)
+  );
 
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | undefined;
     (async () => {
-
       try {
-
         const file = await getFile(filename);
         if (cancelled) {
           return;
         }
         objectUrl = URL.createObjectURL(file);
         setObjectUrl(objectUrl);
-
-      } catch(err) {
+      } catch (err) {
         console.error(err);
       }
     })();
@@ -61,32 +101,50 @@ const FileLineItem: React.FC<{ filename: string; cached: boolean }> = ({
         // cleanup
         URL.revokeObjectURL(objectUrl);
       }
-    }
+    };
   }, [filename, getFile, setObjectUrl]);
 
-
-
   return (
-    <HStack>
-      <IconButton
-        aria-label="delete"
-        onClick={() => deleteFile(filename)}
-        icon={<DeleteIcon />}
-      />
-      <Box>{filename}</Box>
-
-      {cached ? (
-        <Box>cached</Box>
-      ) : (
-        <IconButton
-          aria-label="cache"
-          onClick={() => cacheFile(filename)}
-          icon={<DownloadIcon />}
+    <Tr>
+      <Td>
+        <Switch
+          isChecked={isSelectedForFFMpegInput}
+          onChange={toggleIsSelectedForFFMpegInput}
         />
-      )}
+      </Td>
+      <Td>
+        <Box>{filename}</Box>
+      </Td>
+      <Td>
+        {cached ? (
+          <CheckIcon color="green" />
+        ) : (
+          <IconButton
+            aria-label="cache"
+            onClick={() => cacheFile(filename)}
+            icon={<ArrowDownIcon />}
+          />
+        )}
+      </Td>
+      <Td>
+        {objectUrl ? (
+          <a download={filename} href={objectUrl}>
+            <IconButton
+              aria-label="cache"
+              onClick={() => cacheFile(filename)}
+              icon={<DownloadIcon />}
+            />
+          </a>
+        ) : null}
+      </Td>
 
-        {objectUrl ? <a download={filename} href={objectUrl} >download</a> : null }
-
-    </HStack>
+      <Td>
+        <IconButton
+          aria-label="delete"
+          onClick={() => deleteFile(filename)}
+          icon={<DeleteIcon />}
+        />
+      </Td>
+    </Tr>
   );
 };

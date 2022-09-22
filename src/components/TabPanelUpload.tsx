@@ -1,4 +1,4 @@
-import { useCallback, useState, PropsWithChildren } from "react";
+import { useCallback } from "react";
 import { VStack } from "@chakra-ui/react";
 import { Dropzone, FileItem, FileValidated } from "@dropzone-ui/react";
 import { useFileStore } from "../store";
@@ -7,29 +7,23 @@ export const TabPanelUpload: React.FC = () => {
   const files = useFileStore((state) => state.uploadedFiles);
   const setFiles = useFileStore((state) => state.setUploadedFiles);
 
-  // const [files, setFiles] = useState<FileValidated[]>([]);
   const updateFiles = useCallback(
-    (incomingFiles: FileValidated[]) => {
-      //do something with the files
+    async (incomingFiles: FileValidated[]) => {
+      // no spaces in file names, avoid bugs
+      for (const file of incomingFiles) {
+        const buffer = await file.file.arrayBuffer();
+        file.file = new File([buffer], file.file.name.replaceAll(" ", "-"), {
+          type: file.file.type,
+        });
+      }
       setFiles(incomingFiles);
-
-      // console.log(
-      //   "incomingFiles",
-      //   incomingFiles
-      // );
-
-      // if (incomingFiles.length > 0) {
-      //   console.log(incomingFiles[0]);
-      //   // console.log('keys', Object.keys(incomingFiles[0]));
-      // }
-      //even your own upload implementation
     },
     [setFiles]
   );
 
   const removeFile = useCallback(
     (id: string | number | undefined) => {
-      setFiles(files.filter((x) => x.id !== id));
+      setFiles(files.filter((x) => x.file.name !== id));
     },
     [files, setFiles]
   );

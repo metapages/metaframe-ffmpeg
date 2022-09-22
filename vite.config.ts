@@ -46,8 +46,11 @@ export default defineConfig(({ command, mode }) => ({
     headers: {
       // SharedArrayBuffer (needed for ffmpeg.wasm) is disabled on some browsers due to spectre
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy#examples
-      "Cross-Origin-Opener-Policy": "same-origin",
+      // This header is required for the parent, but not for the iframe
+      // "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp",
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Cross-Origin_Resource_Policy_(CORP)
+      "Cross-Origin-Resource-Policy": "cross-origin",
       // metapage embedding allways needs all origins
       "Access-Control-Allow-Origin": "*",
     },

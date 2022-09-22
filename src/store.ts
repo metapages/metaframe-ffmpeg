@@ -5,7 +5,6 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 
 export type Mode = "idle" | "running" | "cancelled" | "error" | "success";
 
-
 interface FilesState {
   cachedFiles: string[];
   setCachedFiles: (filenames: string[]) => void;
@@ -24,8 +23,11 @@ interface FilesState {
   mode: Mode;
   setMode: (mode: Mode) => void;
 
-  ffmpeg :FFmpeg|undefined;
+  ffmpeg: FFmpeg | undefined;
   setFFmpeg: (ffmpeg: FFmpeg) => void;
+
+  ffmpegInputFiles: Set<string>;
+  toggleFFMpegInputFile: (filename: string) => ((_?: any) => void);
 
   error: string | null;
   setError: (error: string | null) => void;
@@ -39,12 +41,16 @@ export const useFileStore = create<FilesState>((set, get) => ({
   },
 
   getFile: async (filename: string) => {
-    const uploadedFile = get().uploadedFiles.find((file) => file.file.name === filename);
+    const uploadedFile = get().uploadedFiles.find(
+      (file) => file.file.name === filename
+    );
     if (uploadedFile) {
       return uploadedFile.file;
     }
     if (get().cachedFiles.includes(filename)) {
-      const fileFromCache :File | undefined | null  = await localForage.getItem(filename);
+      const fileFromCache: File | undefined | null = await localForage.getItem(
+        filename
+      );
       if (fileFromCache) {
         return fileFromCache;
       }
@@ -53,12 +59,14 @@ export const useFileStore = create<FilesState>((set, get) => ({
   },
 
   cacheFile: async (filename: string) => {
-    const cachedFiles = [ ...get().cachedFiles ];
+    const cachedFiles = [...get().cachedFiles];
     if (cachedFiles.includes(filename)) {
       return;
     }
 
-    const uploadedFile = get().uploadedFiles.find(f => f.file.name === filename);
+    const uploadedFile = get().uploadedFiles.find(
+      (f) => f.file.name === filename
+    );
     if (!uploadedFile) {
       // not really how to handle this or how it could happen
       return;
@@ -68,7 +76,7 @@ export const useFileStore = create<FilesState>((set, get) => ({
       await localForage.setItem(uploadedFile.file.name, uploadedFile.file);
       cachedFiles.push(uploadedFile.file.name);
       set((state) => ({
-        cachedFiles
+        cachedFiles,
       }));
     } catch (err) {
       console.log(err);
@@ -84,36 +92,22 @@ export const useFileStore = create<FilesState>((set, get) => ({
     sortedKeys.sort();
 
     set((state) => ({
-      cachedFiles: sortedKeys
+      cachedFiles: sortedKeys,
     }));
   },
 
   uploadedFiles: [],
   setUploadedFiles: async (files: FileValidated[]) => {
-    // save to cache if not already there
-    // const cachedFiles = [...get().cachedFiles];
-    // const uploadedFiles: FileValidated[] = [];
-    // for (const file of files) {
-    //   if (!file?.file.name || cachedFiles.includes(file.file.name)) {
-    //     continue;
-    //   }
-    //   try {
-    //     await localForage.setItem(file.file.name, file.file);
-    //     console.log("file saved locally", file.file.name);
-    //     uploadedFiles.push(file);
-    //     cachedFiles.push(file.file.name);
-    //   } catch (err) {
-    //     console.log(err);
-    //   }
-    // }
     set((state) => ({ uploadedFiles: files }));
   },
-  addUploadedFile: async (file: FileValidated) => {
+  addUploadedFile: async (file: FileValidated) =>
     set((state) => ({
       // overwrite if already exists
-      uploadedFiles: [...state.uploadedFiles.filter(f => f.file.name !== file.file.name), file]
-    }));
-  },
+      uploadedFiles: [
+        ...state.uploadedFiles.filter((f) => f.file.name !== file.file.name),
+        file,
+      ],
+    })),
 
   deleteFile: async (filename: string) => {
     const cachedFiles = [...get().cachedFiles];
@@ -160,7 +154,17 @@ export const useFileStore = create<FilesState>((set, get) => ({
   ffmpeg: undefined,
   setFFmpeg: (ffmpeg: FFmpeg) => set((state) => ({ ffmpeg })),
 
+  ffmpegInputFiles: new Set(),
+  toggleFFMpegInputFile: (filename: string) => {
+    return (_?: any) => {
+      const copy = new Set(get().ffmpegInputFiles);
+      get().ffmpegInputFiles.has(filename)
+      ? copy.delete(filename)
+      : copy.add(filename);
+      set((state) => ({ ffmpegInputFiles: copy }));
+    }
+  },
+
   error: null,
   setError: (error: string | null) => set((state) => ({ error })),
-
 }));
