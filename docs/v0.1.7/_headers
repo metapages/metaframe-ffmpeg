@@ -1,0 +1,6 @@
+# Security settings to allow cross-domain isolation for ffmpeg.wasm to work
+# as it requires SharedArrayBuffer
+/*
+  Access-Control-Allow-Origin: *
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: cross-origin
